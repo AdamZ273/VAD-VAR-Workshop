@@ -2,31 +2,22 @@
 author: Elena Lowery
 
 This code sample shows how to invoke Large Language Models (LLMs) deployed in watsonx.ai.
-Documentation: https://ibm.github.io/watson-machine-learning-sdk/foundation_models.html
-You will need to provide your IBM Cloud API key and a watonx.ai project id  (any project)
-for accessing watsonx.ai in a .env file
-This example shows simple use cases without comprehensive prompt tuning
+Documentation: # https://ibm.github.io/watson-machine-learning-sdk/foundation_models.html#
+You will need to provide your IBM Cloud API key and a watonx.ai project id (any project)
+for accessing watsonx.ai
+This example shows a Generate use case
 """
 
 # Install the wml api your Python env prior to running this example:
 # pip install ibm-watson-machine-learning
-# pip install ibm-cloud-sdk-core
-
-# In non-Anaconda Python environments, you may also need to install dotenv
-# pip install python-dotenv
 
 # For reading credentials from the .env file
 import os
 # from dotenv import load_dotenv
 
-# WML python SDK
 from ibm_watson_machine_learning.foundation_models import Model
 from ibm_watson_machine_learning.metanames import GenTextParamsMetaNames as GenParams
 from ibm_watson_machine_learning.foundation_models.utils.enums import ModelTypes, DecodingMethods
-
-# For invocation of LLM with REST API
-import requests, json
-from ibm_cloud_sdk_core import IAMTokenManager
 
 # Important: hardcoding the API key in Python code is not a best practice. We are using
 # this approach for the ease of demo setup. In a production application these variables
@@ -35,20 +26,21 @@ from ibm_cloud_sdk_core import IAMTokenManager
 # URL of the hosted LLMs is hardcoded because at this time all LLMs share the same endpoint
 url = "https://us-south.ml.cloud.ibm.com"
 
-# These global variables will be updated in get_credentials() functions
+TASK_DEFAULT = "default"
+TASK_GENERATE_EMAIL = "generate email"
+
+# These global variables will be updated in get_credentials() function
 watsonx_project_id = "41b857f4-2b79-44fd-a599-e4aef3801293"
 # Replace with your IBM Cloud key
 api_key = "Yx0r5Cf7eMtxHZMDtS1Ud520eW0KNdNOtJG8Kg5dUXLL"
 
 def get_credentials():
 
-#     load_dotenv()
-
+    # load_dotenv()
     # Update the global variables that will be used for authentication in another function
     globals()["api_key"] = api_key
     globals()["watsonx_project_id"] = watsonx_project_id
 
-# The get_model function creates an LLM model object with the specified parameters
 def get_model(model_type,max_tokens,min_tokens,decoding,temperature):
 
     generate_params = {
@@ -70,144 +62,119 @@ def get_model(model_type,max_tokens,min_tokens,decoding,temperature):
 
     return model
 
-def get_list_of_complaints():
+def get_review():
 
-    # Look up parameters in documentation:
-    # https://ibm.github.io/watson-machine-learning-sdk/foundation_models.html#
+    # This code can be replaced with getting a review from a file or another sources
+    # Source of this review: DeepLearningAI Prompt Class example https://learn.deeplearning.ai/chatgpt-prompt-eng/lesson/7/expanding
 
-    # You can specify any prompt and change parameters for different runs
+    # Try different types of reviews - one at a time or modify the code to read from file.
 
-    # If you want the end user to have a choice of the number of tokens in the output as well as decoding
-    # and temperature, you can parameterize these values
-
-    model_type = ModelTypes.LLAMA_2_13B_CHAT
-    max_tokens = 100
-    min_tokens = 50
-    decoding = DecodingMethods.GREEDY
-    # Temperature will be ignored if GREEDY is used
-    temperature = 0.7
-
-    # Instantiate the model
-    model = get_model(model_type,max_tokens,min_tokens,decoding, temperature)
-
-    complaint = f"""
-            I just tried to book a flight on your incredibly slow website.  All 
-            the times and prices were confusing.  I liked being able to compare 
-            the amenities in economy with business class side by side.  But I 
-            never got to reserve a seat because I didn't understand the seat map.  
-            Next time, I'll use a travel agent!
-            """
-
-    # Hardcoding prompts in a script is not best practice. We are providing this code sample for simplicity of
-    # understanding
-
-    prompt_get_complaints = f"""
-    From the following customer complaint, extract 3 factors that caused the customer to be unhappy. 
-    Put each factor on a new line. 
-
-    Customer complaint:{complaint}
-
-    Numbered list of all the factors that caused the customer to be unhappy:
-
+    # review for a blender
+    service_review = f"""
+    So, they still had the 17 piece system on seasonal sale for around $49 in the month of
+    November, about  half off, but for some reason (call it price gouging) 
+    around the second week of December the prices all went up to about anywhere from 
+    between $70-$89 for the same system. And the 11 piece system went up around $10 or 
+    so in price also from the earlier sale price of $29. So it looks okay, but if you look at the base, the part 
+    where the blade locks into place doesn’t look as good as in previous editions from a few years ago, but I 
+    plan to be very gentle with it (example, I crush very hard items like beans, ice, rice, etc. in the 
+    blender first then pulverize them in the serving size I want in the blender then switch to the whipping 
+    blade for a finer flour, and use the cross cutting blade first when making smoothies, then use the flat blade 
+    if I need them finer/less pulpy). Special tip when making smoothies, finely cut and freeze the fruits and 
+    vegetables (if using spinach-lightly stew soften the spinach then freeze until ready for use-and if making 
+    sorbet, use a small to medium sized food processor) that you plan to use that way you can avoid adding so 
+    much ice if at all-when making your smoothie. After about a year, the motor was making a funny noise. 
+    I called customer service but the warranty expired already, so I had to buy another one. FYI: The overall 
+    quality has gone done in these types of products, so they are kind of counting on brand recognition and 
+    consumer loyalty to maintain sales. Got it in about two days.
     """
 
-    # Invoke the model and print the results
-    generated_response = model.generate(prompt=prompt_get_complaints)
-    # WML API returns a dictionary object. Generated response is a list object that contains generated text
-    # as well as several other items such as token count and seed
-    # We recommmend that you put a breakpoint on this line and example the result object
-    print("---------------------------------------------------------------------------")
-    print("Prompt: " + prompt_get_complaints)
-    print("List of complaints: " + generated_response['results'][0]['generated_text'])
-    print("---------------------------------------------------------------------------")
+    return service_review
 
-def answer_questions():
+def get_prompt(service_review, task_type, sentiment):
 
-    # Look up parameters in documentation:
-    # https://ibm.github.io/watson-machine-learning-sdk/foundation_models.html#
+    # Get the complete prompt by replacing variables
 
-    # You can specify any prompt and change parameters for different runs
+    if task_type == TASK_GENERATE_EMAIL:
+        complete_prompt = f"""
+        You are a customer service AI assistant. Your task is to generate an email reply to the customer.
+        Using text delimited by ``` Generate a reply to thank the customer for their review.
+        
+        If the sentiment is positive or neutral, thank them for their review.
+        If the sentiment is negative, apologize and suggest that they can reach out to customer service. 
+        
+        Use specific details from the review.
+        
+        Write in a concise and professional tone.
+        
+        Sign the email as `AI customer agent`.
+        Customer review: ```{service_review}```
+        Review sentiment: {sentiment}
+        """
+    else:
+        # Provide a summary of the text
+        complete_prompt = f"""
+        Summarize the review below, delimited by ''' , in at most 100 words.
+        Review: ```{service_review}```
+        """
 
-    # If you want the end user to have a choice of the number of tokens in the output as well as decoding
-    # and temperature, you can parameterize these values
+    return complete_prompt
 
-    final_prompt = "Write a paragraph about the capital of France."
-    model_type = ModelTypes.FLAN_UL2
-    max_tokens = 300
-    min_tokens = 50
+def main():
+
+    # Specify model parameters
+    model_type = ModelTypes.LLAMA_2_13B_CHAT
+    max_tokens = 150
+    min_tokens = 100
+    decoding = DecodingMethods.SAMPLE
+    temperature = 0.7
+
+    # Get the API key and project id and update global variables
+    get_credentials()
+
+    # Instantiate the model
+    model = get_model(model_type, max_tokens, min_tokens, decoding, temperature)
+
+    review = get_review()
+    complete_prompt = get_prompt(review, TASK_GENERATE_EMAIL, "negative")
+
+    generated_response = model.generate(prompt=complete_prompt)
+    response_text = generated_response['results'][0]['generated_text']
+
+    # print model response
+    print("--------------------------------- Generated email for a negative review -----------------------------------")
+    print("Prompt: " + complete_prompt.strip())
+    print("---------------------------------------------------------------------------------------------")
+    print("Generated email: " + response_text)
+    print("*********************************************************************************************")
+
+    # Test invocation of a function from the external module
+    generate(api_key,watsonx_project_id,review,TASK_GENERATE_EMAIL,model_type)
+
+def generate(request_api_key, request_project_id, review, task,model_type):
+
+    # Update the global variable
+    globals()["api_key"] = request_api_key
+    globals()["watsonx_project_id"] = request_project_id
+
+    # Specify model parameters
+    max_tokens = 150
+    min_tokens = 100
     decoding = DecodingMethods.SAMPLE
     temperature = 0.7
 
     # Instantiate the model
-    model = get_model(model_type,max_tokens,min_tokens,decoding, temperature)
-    # Invoke the model and print the results
-    generated_response = model.generate(prompt=final_prompt)
-    # WML API returns a dictionary object. Generated response is a list object that contains generated text
-    # as well as several other items such as token count and seed
-    # We recommmend that you put a breakpoint on this line and example the result object
-    print("---------------------------------------------------------------------------")
-    print("Question/request: " + final_prompt)
-    print("Answer: " + generated_response['results'][0]['generated_text'])
-    print("---------------------------------------------------------------------------")
+    model = get_model(model_type, max_tokens, min_tokens, decoding, temperature)
 
-def invoke_with_REST():
+    complete_prompt = get_prompt(review, task, "negative")
 
-    rest_url ="https://us-south.ml.cloud.ibm.com/ml/v1-beta/generation/text?version=2023-05-29"
+    generated_response = model.generate(prompt=complete_prompt)
+    response_text = generated_response['results'][0]['generated_text']
 
-    access_token = get_auth_token()
+    print("*************************************************************")
+    print("Function invocation test result:" + response_text)
 
-    model_type = "google/flan-ul2"
-    max_tokens = 300
-    min_tokens = 50
-    decoding = "sample"
-    temperature = 0.7
 
-    final_prompt = "Write a paragraph about the capital of France."
-
-    headers = {
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-        "Authorization": "Bearer " + access_token
-        }
-
-    data = {
-        "model_id": model_type,
-        "input": final_prompt,
-        "parameters": {
-            "decoding_method": decoding,
-            "max_new_tokens": max_tokens,
-            "min_new_tokens": min_tokens,
-            "temperature": temperature,
-            "stop_sequences": ["."],
-            },
-        "project_id": watsonx_project_id
-    }
-
-    response = requests.post(rest_url, headers=headers, data=json.dumps(data))
-    generated_response = response.json()['results'][0]['generated_text']
-
-    print("--------------------------Invocation with REST-------------------------------------------")
-    print("Question/request: " + final_prompt)
-    print("Answer: " + generated_response)
-    print("---------------------------------------------------------------------------")
-
-def get_auth_token():
-
-    # Access token is required for REST invocation of the LLM
-    access_token = IAMTokenManager(apikey=api_key,url="https://iam.cloud.ibm.com/identity/token").get_token()
-    return access_token
-
-def demo_LLM_invocation():
-
-    # Load the api key and project id
-    get_credentials()
-
-    # Show examples of 2 use cases/prompts
-    answer_questions()
-    get_list_of_complaints()
-
-    # Simple prompt - invoked with the REST API
-    invoke_with_REST()
-
-# demo_LLM_invocation()
-print(get_auth_token())
+# Invoke the main function
+if __name__ == "__main__":
+    main()
