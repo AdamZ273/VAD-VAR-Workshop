@@ -30,7 +30,7 @@ TASK_DEFAULT = "default"
 TASK_GENERATE_EMAIL = "generate email"
 
 # These global variables will be updated in get_credentials() function
-project_id = "41b857f4-2b79-44fd-a599-e4aef3801293"
+watsonx_project_id = "41b857f4-2b79-44fd-a599-e4aef3801293"
 # Replace with your IBM Cloud key
 api_key = "Yx0r5Cf7eMtxHZMDtS1Ud520eW0KNdNOtJG8Kg5dUXLL"
 
