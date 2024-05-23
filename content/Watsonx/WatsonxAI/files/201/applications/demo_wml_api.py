@@ -35,10 +35,10 @@ from ibm_cloud_sdk_core import IAMTokenManager
 # URL of the hosted LLMs is hardcoded because at this time all LLMs share the same endpoint
 url = "https://us-south.ml.cloud.ibm.com"
 
-# These global variables will be updated in get_credentials() functions
-watsonx_project_id = ""
+# These global variables will be updated in get_credentials() function
+watsonx_project_id = "41b857f4-2b79-44fd-a599-e4aef3801293"
 # Replace with your IBM Cloud key
-api_key = ""
+api_key = "Yx0r5Cf7eMtxHZMDtS1Ud520eW0KNdNOtJG8Kg5dUXLL"
 
 def get_credentials():
 
