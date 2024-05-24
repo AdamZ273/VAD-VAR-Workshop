@@ -5,15 +5,21 @@ This code sample shows how to invoke Large Language Models (LLMs) deployed in wa
 Documentation: # https://ibm.github.io/watson-machine-learning-sdk/foundation_models.html#
 You will need to provide your IBM Cloud API key and a watonx.ai project id (any project)
 for accessing watsonx.ai
-This example shows a Generate use case
+This example shows a simple generation or Q&A use case without comprehensive prompt tuning
 """
 
-# Install the wml api your Python env prior to running this example:
+# Install the wml and streamlit api your Python env prior to running this example:
 # pip install ibm-watson-machine-learning
+# pip install streamlit
+
+# In non-Anaconda Python environments, you may also need to install dotenv
+# pip install python-dotenv
 
 # For reading credentials from the .env file
 import os
-# from dotenv import load_dotenv
+from dotenv import load_dotenv
+
+import streamlit as st
 
 from ibm_watson_machine_learning.foundation_models import Model
 from ibm_watson_machine_learning.metanames import GenTextParamsMetaNames as GenParams
@@ -26,9 +32,6 @@ from ibm_watson_machine_learning.foundation_models.utils.enums import ModelTypes
 # URL of the hosted LLMs is hardcoded because at this time all LLMs share the same endpoint
 url = "https://us-south.ml.cloud.ibm.com"
 
-TASK_DEFAULT = "default"
-TASK_GENERATE_EMAIL = "generate email"
-
 # These global variables will be updated in get_credentials() function
 watsonx_project_id = "41b857f4-2b79-44fd-a599-e4aef3801293"
 # Replace with your IBM Cloud key
@@ -36,18 +39,23 @@ api_key = "Yx0r5Cf7eMtxHZMDtS1Ud520eW0KNdNOtJG8Kg5dUXLL"
 
 def get_credentials():
 
-    # load_dotenv()
-    # Update the global variables that will be used for authentication in another function
-    globals()["api_key"] = api_key
-    globals()["watsonx_project_id"] = watsonx_project_id
+    load_dotenv()
 
-def get_model(model_type,max_tokens,min_tokens,decoding,temperature):
+    # Update the global variables that will be used for authentication in another function
+    globals()["api_key"] = os.getenv("api_key", None)
+    globals()["watsonx_project_id"] = os.getenv("project_id", None)
+
+    print("*** Got credentials***")
+    print(f"Project ID: {watsonx_project_id}")
+
+# The get_model function creates an LLM model object with the specified parameters
+def get_model(model_type,max_tokens,min_tokens,decoding,stop_sequences):
 
     generate_params = {
         GenParams.MAX_NEW_TOKENS: max_tokens,
         GenParams.MIN_NEW_TOKENS: min_tokens,
         GenParams.DECODING_METHOD: decoding,
-        GenParams.TEMPERATURE: temperature
+        GenParams.STOP_SEQUENCES:stop_sequences
     }
 
     model = Model(
@@ -62,119 +70,64 @@ def get_model(model_type,max_tokens,min_tokens,decoding,temperature):
 
     return model
 
-def get_review():
+def get_prompt(question):
 
-    # This code can be replaced with getting a review from a file or another sources
-    # Source of this review: DeepLearningAI Prompt Class example https://learn.deeplearning.ai/chatgpt-prompt-eng/lesson/7/expanding
+    # Prompts are passed to LLMs as one string. We are building it out as separate strings for ease of understanding
+    # Instruction
+    instruction = "Answer this question briefly."
+    # Examples to help the model set the context
+    examples = "\n\nQuestion: What is the capital of Germany\nAnswer: Berlin\n\nQuestion: What year was George Washington born?\nAnswer: 1732\n\nQuestion: What are the main micro nutrients in food?\nAnswer: Protein, carbohydrates, and fat\n\nQuestion: What language is spoken in Brazil?\nAnswer: Portuguese \n\nQuestion: "
+    # Question entered in the UI
+    your_prompt = question
+    # Since LLMs want to "complete a document", we're are giving it a "pattern to complete" - provide the answer
+    end_prompt = "Answer:"
 
-    # Try different types of reviews - one at a time or modify the code to read from file.
+    final_prompt = instruction + examples + your_prompt + end_prompt
 
-    # review for a blender
-    service_review = f"""
-    So, they still had the 17 piece system on seasonal sale for around $49 in the month of
-    November, about  half off, but for some reason (call it price gouging) 
-    around the second week of December the prices all went up to about anywhere from 
-    between $70-$89 for the same system. And the 11 piece system went up around $10 or 
-    so in price also from the earlier sale price of $29. So it looks okay, but if you look at the base, the part 
-    where the blade locks into place doesn’t look as good as in previous editions from a few years ago, but I 
-    plan to be very gentle with it (example, I crush very hard items like beans, ice, rice, etc. in the 
-    blender first then pulverize them in the serving size I want in the blender then switch to the whipping 
-    blade for a finer flour, and use the cross cutting blade first when making smoothies, then use the flat blade 
-    if I need them finer/less pulpy). Special tip when making smoothies, finely cut and freeze the fruits and 
-    vegetables (if using spinach-lightly stew soften the spinach then freeze until ready for use-and if making 
-    sorbet, use a small to medium sized food processor) that you plan to use that way you can avoid adding so 
-    much ice if at all-when making your smoothie. After about a year, the motor was making a funny noise. 
-    I called customer service but the warranty expired already, so I had to buy another one. FYI: The overall 
-    quality has gone done in these types of products, so they are kind of counting on brand recognition and 
-    consumer loyalty to maintain sales. Got it in about two days.
-    """
+    return final_prompt
 
-    return service_review
+def answer_questions():
 
-def get_prompt(service_review, task_type, sentiment):
-
-    # Get the complete prompt by replacing variables
-
-    if task_type == TASK_GENERATE_EMAIL:
-        complete_prompt = f"""
-        You are a customer service AI assistant. Your task is to generate an email reply to the customer.
-        Using text delimited by ``` Generate a reply to thank the customer for their review.
-        
-        If the sentiment is positive or neutral, thank them for their review.
-        If the sentiment is negative, apologize and suggest that they can reach out to customer service. 
-        
-        Use specific details from the review.
-        
-        Write in a concise and professional tone.
-        
-        Sign the email as `AI customer agent`.
-        Customer review: ```{service_review}```
-        Review sentiment: {sentiment}
-        """
-    else:
-        # Provide a summary of the text
-        complete_prompt = f"""
-        Summarize the review below, delimited by ''' , in at most 100 words.
-        Review: ```{service_review}```
-        """
-
-    return complete_prompt
-
-def main():
-
-    # Specify model parameters
-    model_type = ModelTypes.LLAMA_2_13B_CHAT
-    max_tokens = 150
-    min_tokens = 100
-    decoding = DecodingMethods.SAMPLE
-    temperature = 0.7
-
-    # Get the API key and project id and update global variables
+    # Set the api key and project id global variables
     get_credentials()
 
-    # Instantiate the model
-    model = get_model(model_type, max_tokens, min_tokens, decoding, temperature)
+    # Web app UI - title and input box for the question
+    st.title('🌠Test watsonx.ai LLM')
+    user_question = st.text_input('Ask a question, for example: What is IBM?')
 
-    review = get_review()
-    complete_prompt = get_prompt(review, TASK_GENERATE_EMAIL, "negative")
+    # If the quesiton is blank, let's prevent LLM from showing a random fact, so we will ask a question
+    if len(user_question.strip())==0:
+        user_question="What is IBM?"
 
-    generated_response = model.generate(prompt=complete_prompt)
-    response_text = generated_response['results'][0]['generated_text']
+    # Get the prompt
+    final_prompt = get_prompt(user_question)
 
-    # print model response
-    print("--------------------------------- Generated email for a negative review -----------------------------------")
-    print("Prompt: " + complete_prompt.strip())
-    print("---------------------------------------------------------------------------------------------")
-    print("Generated email: " + response_text)
-    print("*********************************************************************************************")
+    # Display our complete prompt - for debugging/understanding
+    print(final_prompt)
 
-    # Test invocation of a function from the external module
-    generate(api_key,watsonx_project_id,review,TASK_GENERATE_EMAIL,model_type)
+    # Look up parameters in documentation:
+    # https://ibm.github.io/watson-machine-learning-sdk/foundation_models.html#
+    model_type = ModelTypes.FLAN_UL2
+    max_tokens = 100
+    min_tokens = 20
+    decoding = DecodingMethods.GREEDY
+    stop_sequences = ['.']
 
-def generate(request_api_key, request_project_id, review, task,model_type):
+    # Get the model
+    model = get_model(model_type, max_tokens, min_tokens, decoding,stop_sequences)
 
-    # Update the global variable
-    globals()["api_key"] = request_api_key
-    globals()["watsonx_project_id"] = request_project_id
+    # Generate response
+    generated_response = model.generate(prompt=final_prompt)
+    model_output = generated_response['results'][0]['generated_text']
+    # For debugging
+    print("Answer: " + model_output)
 
-    # Specify model parameters
-    max_tokens = 150
-    min_tokens = 100
-    decoding = DecodingMethods.SAMPLE
-    temperature = 0.7
-
-    # Instantiate the model
-    model = get_model(model_type, max_tokens, min_tokens, decoding, temperature)
-
-    complete_prompt = get_prompt(review, task, "negative")
-
-    generated_response = model.generate(prompt=complete_prompt)
-    response_text = generated_response['results'][0]['generated_text']
-
-    print("*************************************************************")
-    print("Function invocation test result:" + response_text)
-
+    # Display output on the Web page
+    formatted_output = f"""
+        **Answer to your question:** {user_question} \
+        *{model_output}*</i>
+        """
+    st.markdown(formatted_output, unsafe_allow_html=True)
 
 # Invoke the main function
-if __name__ == "__main__":
-    main()
+answer_questions()
